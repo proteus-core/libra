@@ -65,7 +65,9 @@ object createStaticPipeline {
         new TrapHandler(pipeline.writeback),
         new TrapStageInvalidator,
         new Interrupts(pipeline.writeback),
-        new MulDiv(Set(pipeline.execute))
+        new MulDiv(Set(pipeline.execute)),
+        new Marker,
+        new Libra
       ) ++ extraPlugins
     )
 
@@ -196,6 +198,8 @@ object createDynamicPipeline {
         override val passThroughStage: Stage = decode // dummy
       }
 
+      override val fetchStage: Stage = issuePipeline.fetch
+
       val intAlu1 = new Stage("EX_ALU1")
       val intAlu2 = new Stage("EX_ALU2")
       val intAlu3 = new Stage("EX_ALU3")
@@ -220,8 +224,7 @@ object createDynamicPipeline {
       Seq(
         new scheduling.static.Scheduler(canStallExternally = true),
         new scheduling.static.PcManager(0x80000000L),
-        pipeline.backbone,
-        new memory.Fetcher(pipeline.issuePipeline.fetch)
+        pipeline.backbone
       )
     )
 
@@ -229,6 +232,7 @@ object createDynamicPipeline {
 
     pipeline.addPlugins(
       Seq(
+        new memory.Fetcher(pipeline.issuePipeline.fetch),
         new Decoder(pipeline.issuePipeline.decode), // TODO: ugly alert!!
         new scheduling.dynamic.Scheduler,
         new scheduling.dynamic.PcManager,
@@ -261,7 +265,9 @@ object createDynamicPipeline {
         new TrapHandler(pipeline.retirementStage),
         new MachineMode(pipeline.intAlu1),
         new Interrupts(pipeline.retirementStage),
-        new Timers
+        new Timers,
+        new Marker,
+        new Libra
       ) ++ extraPlugins
     )
 

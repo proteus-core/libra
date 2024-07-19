@@ -66,6 +66,7 @@ abstract class BranchTargetPredictorBase(fetchStage: Stage, jumpStage: Stage)
   private object Data {
     object PREDICTED_PC extends PipelineData(UInt(config.xlen bits))
     object PREDICTED_JUMP extends PipelineData(Bool())
+    object DO_NOT_UPDATE extends PipelineData(Bool())
   }
 
   override def predictedPc(stage: Stage): UInt = {
@@ -111,18 +112,21 @@ abstract class BranchTargetPredictorBase(fetchStage: Stage, jumpStage: Stage)
       // in case of an incorrect prediction, issue a jump to the correct target
       // and notify the predictor
       when(
-        arbitration.isDone &&
-          !predictionWasCorrect(value(pipeline.data.NEXT_PC), value(Data.PREDICTED_PC))
+        arbitration.isDone && !predictionWasCorrect(
+          output(pipeline.data.NEXT_PC),
+          output(Data.PREDICTED_PC)
+        )
+          && !output(Data.DO_NOT_UPDATE)
       ) {
         jumpIo.mispredicted := True
-        jumpIo.currentPc := value(pipeline.data.PC)
-        jumpIo.target := value(pipeline.data.NEXT_PC)
+        jumpIo.currentPc := output(pipeline.data.PC)
+        jumpIo.target := output(pipeline.data.NEXT_PC)
 
         // HACK this forces the jump service to restart the pipeline from NEXT_PC
         jumpService.jumpRequested(jumpStage) := True
       }
 
-      when(arbitration.isDone && value(Data.PREDICTED_JUMP)) {
+      when(arbitration.isDone && output(Data.PREDICTED_JUMP)) {
         jumpIo.correctlyPredicted := True
       }
     }
@@ -163,7 +167,10 @@ abstract class BranchTargetPredictorBase(fetchStage: Stage, jumpStage: Stage)
       val jumpService = pipeline.service[JumpService]
 
       // if a target was predicted, set the PC of the fetch stage to the prediction
-      when(predictorComponent.predictIo.predictedAddress.valid && fetchStage.arbitration.isDone) {
+      when(
+        predictorComponent.predictIo.predictedAddress.valid && fetchStage.arbitration.isDone && !fetchStage
+          .output(Data.DO_NOT_UPDATE)
+      ) {
         jumpService.setFetchPc(predictorComponent.predictIo.predictedAddress.payload)
       }
     }
@@ -171,5 +178,9 @@ abstract class BranchTargetPredictorBase(fetchStage: Stage, jumpStage: Stage)
 
   def predictionWasCorrect(nextPc: UInt, predictedPc: UInt): Bool = {
     nextPc === predictedPc
+  }
+
+  override def updatePrevented(stage: Stage): Bool = {
+    stage.output(Data.DO_NOT_UPDATE)
   }
 }

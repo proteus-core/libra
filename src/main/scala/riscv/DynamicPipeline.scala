@@ -60,7 +60,9 @@ trait DynamicPipeline extends Pipeline {
       stage.value(data.RS2_TYPE)
 
       service[BranchTargetPredictorService].predictedPc(stage)
+      service[BranchTargetPredictorService].updatePrevented(stage)
       service[JumpService].jumpRequested(stage)
+      service[LibraService].getLibraState(stage)
     }
 
     // HACK make sure that all pipeline regs are routed through *all* exe stages.

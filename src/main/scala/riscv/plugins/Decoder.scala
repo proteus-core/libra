@@ -99,7 +99,7 @@ class Decoder(decodeStage: Stage) extends Plugin[Pipeline] with DecoderService {
     }
   }
 
-  override protected def stage(): Stage = decodeStage
+  override def stage(): Stage = decodeStage
 
   override def build(): Unit = {
     decodeStage plug new Area {

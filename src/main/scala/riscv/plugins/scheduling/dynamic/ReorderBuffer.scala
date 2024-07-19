@@ -52,13 +52,18 @@ class ReorderBuffer(
   def capacity: Int = robCapacity
   def indexBits: BitCount = log2Up(capacity) bits
 
+  private val lastLibraBranch = Reg(Flow(UInt(indexBits)))
+
+  val lastLibraState: Flow[UInt] = Reg(Flow(UInt(config.xlen bits)))
+
   val robEntries = Vec.fill(capacity)(RegInit(RobEntry(retirementRegisters).getZero))
   val oldestIndex = Counter(capacity)
   val newestIndex = Counter(capacity)
   private val isFullNext = Bool()
   private val isFull = RegNext(isFullNext).init(False)
   private val willRetire = False
-  val isAvailable = !isFull || willRetire
+
+  val isAvailable = (!isFull || willRetire) && !lastLibraBranch.valid
 
   val pushInCycle = Bool()
   pushInCycle := False
@@ -66,9 +71,11 @@ class ReorderBuffer(
   pushedEntry := RobEntry(retirementRegisters).getZero
 
   def reset(): Unit = {
+    lastLibraState.setIdle()
     oldestIndex.clear()
     newestIndex.clear()
     isFull := False
+    lastLibraBranch.setIdle()
   }
 
   private def byte2WordAddress(address: UInt) = {
@@ -146,6 +153,18 @@ class ReorderBuffer(
 
     rs2.valid := issueStage.output(pipeline.data.RS2_TYPE) === RegisterType.GPR
     rs2.payload := issueStage.output(pipeline.data.RS2)
+
+    pipeline.serviceOption[LibraService] foreach { libra =>
+      lastLibraState.push(libra.getLibraState(issueStage))
+      // this was to disable incorrect libra state updates, but allowing predictions after lob is also insecure
+      when(
+        libra.isLibraInst(issueStage) ||
+          (libra.isReturn(issueStage) && (libra
+            .isActive(libra.getLibraState(issueStage)) || lastLibraBranch.valid))
+      ) {
+        lastLibraBranch.push(newestIndex.value)
+      }
+    }
 
     (newestIndex.value, bookkeeping(rs1, rs2))
   }
@@ -259,6 +278,10 @@ class ReorderBuffer(
     ret.connectOutputDefaults()
     ret.connectLastValues()
 
+    when(isEmpty && !pushInCycle) {
+      lastLibraState.setIdle()
+    }
+
     when(
       !isEmpty && oldestEntry.rdbUpdated && (oldestEntry.cdbUpdated || (!oldestEntry.registerMap
         .elementAs[Bool](pipeline.data.RD_DATA_VALID.asInstanceOf[PipelineData[Data]]) &&
@@ -274,6 +297,10 @@ class ReorderBuffer(
         oldestIndex.increment()
         willRetire := True
         isFullNext := False
+
+        when(lastLibraBranch.valid && lastLibraBranch.payload === oldestIndex) {
+          lastLibraBranch.valid := False // TODO: what if pushed in the same cycle?
+        }
       }
     }
 

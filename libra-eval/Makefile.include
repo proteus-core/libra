@@ -1,0 +1,164 @@
+EVAL_DIR = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
+BASE_DIR = $(abspath $(EVAL_DIR)/..)
+SIM_DIR = $(BASE_DIR)/proteus/sim
+SIM_EXE = $(SIM_DIR)/build/sim
+GTKW_DIR = $(EVAL_DIR)gtkw
+CORE ?= riscv.CoreExtMem
+BUILD_CORE ?= 1
+USECLANG ?= 1
+EXPERIMENT ?= LEGACY
+
+
+PYTHON = python3
+GTKW = gtkwave
+
+EVALUATE = $(PYTHON) $(EVAL_DIR)evaluate.py
+
+OPTLEVEL ?= 3
+COMMONCFLAGS =
+COMMONCFLAGS += -I$(EVAL_DIR)
+COMMONCFLAGS += -nostdlib
+COMMONCFLAGS += -O$(OPTLEVEL)
+
+LIBRA_TOOLCHAIN_DIR = $(BASE_DIR)/toolchain/install/bin
+CLANG = $(LIBRA_TOOLCHAIN_DIR)/clang
+LLD = $(LIBRA_TOOLCHAIN_DIR)/ld.lld
+OBJDUMP = $(LIBRA_TOOLCHAIN_DIR)/llvm-objdump
+
+CLANGFLAGS =
+CLANGFLAGS += $(COMMONCFLAGS)
+CLANGFLAGS += --target=riscv32
+CLANGFLAGS += -march=rv32im
+
+RISCV_PREFIX ?= riscv64-unknown-elf
+OBJCOPY = $(RISCV_PREFIX)-objcopy
+GCC = $(RISCV_PREFIX)-gcc
+
+ARCHFLAGS =
+ARCHFLAGS += -march=rv32im
+ARCHFLAGS += -mabi=ilp32
+
+GCCFLAGS =
+GCCFLAGS += $(COMMONCFLAGS)
+GCCFLAGS += $(ARCHFLAGS)
+
+LD = $(GCC)
+LDFLAGS =
+LDFLAGS += $(ARCHFLAGS)
+LDFLAGS += -ffreestanding
+LDFLAGS += -nostdlib
+LDFLAGS += -T $(EVAL_DIR)link.ld
+
+ifeq ($(USECLANG),1)
+CC     = $(CLANG)
+CFLAGS = $(CLANGFLAGS)
+else
+CC     = $(GCC)
+CFLAGS = $(GCCFLAGS)
+endif
+
+OBJECTS =
+OBJECTS += boot.o
+OBJECTS += main.o
+
+##############################################################################
+
+.PRECIOUS: %.bin
+.PRECIOUS: %.vcd
+
+all: $(BENCHMARK).s
+all: $(addsuffix .s, $(MODULES))
+
+all: $(BENCHMARK).results
+all: $(BENCHMARK)-linear.results
+all: $(BENCHMARK)-balanced.results
+all: $(BENCHMARK)-folded.results
+
+$(BENCHMARK).elf: $(OBJECTS)
+$(BENCHMARK).elf: $(BENCHMARK).o
+$(BENCHMARK).elf: $(addsuffix .o, $(MODULES))
+	$(LD) $(LDFLAGS) -o $@ $^
+
+$(BENCHMARK)-linear.elf: $(OBJECTS)
+$(BENCHMARK)-linear.elf: $(BENCHMARK)-linear.o
+$(BENCHMARK)-linear.elf: $(addsuffix -linear.o, $(MODULES))
+	$(LD) $(LDFLAGS) -o $@ $^
+
+$(BENCHMARK)-balanced.elf: $(OBJECTS)
+$(BENCHMARK)-balanced.elf: $(BENCHMARK)-balanced.o
+$(BENCHMARK)-balanced.elf: $(addsuffix -balanced.o, $(MODULES))
+	$(LD) $(LDFLAGS) -o $@ $^
+
+$(BENCHMARK)-folded.elf: $(OBJECTS)
+$(BENCHMARK)-folded.elf: $(BENCHMARK)-folded.o
+$(BENCHMARK)-folded.elf: $(addsuffix -folded.o, $(MODULES))
+	$(LD) $(LDFLAGS) -o $@ $^
+
+boot.o: $(EVAL_DIR)boot.S
+	$(CC) $(CFLAGS) -c $<
+
+%.s: %.c
+	$(CC) $(CFLAGS) -S $<
+
+%.o: %.s
+	$(CLANG) $(CLANGFLAGS) -c $<
+
+%.o: %.c
+	$(CC) $(CFLAGS) -D$(EXPERIMENT) -c $<
+
+%.bin: %.elf
+	$(OBJCOPY) -O binary $< $@
+
+%.objdump: %.elf
+	$(OBJDUMP) -d $< > $@
+
+%.vcd: %.bin $(SIM_EXE)
+	$(SIM_EXE) $<
+	cp sim.vcd $*.vcd
+	cp sim.mem $*.mem
+
+%.results: %.vcd
+	$(EVALUATE) $*
+
+.PHONY: wave-static
+wave-static: $(BENCHMARK).vcd
+	$(GTKW) $< $(GTKW_DIR)/static.gtkw
+
+.PHONY: wave-dynamic
+wave-dynamic: $(BENCHMARK).vcd
+	$(GTKW) $< $(GTKW_DIR)/dynamic.gtkw
+
+.PHONY: wave-linear-static
+wave-linear-static: $(BENCHMARK)-linear.vcd
+	$(GTKW) $< $(GTKW_DIR)/static.gtkw
+
+.PHONY: wave-linear-dynamic
+wave-linear-dynamic: $(BENCHMARK)-linear.vcd
+	$(GTKW) $< $(GTKW_DIR)/dynamic.gtkw
+
+.PHONY: wave-balanced-static
+wave-balanced-static: $(BENCHMARK)-balanced.vcd
+	$(GTKW) $< $(GTKW_DIR)/static.gtkw
+
+.PHONY: wave-balanced-dynamic
+wave-balanced-dynamic: $(BENCHMARK)-balanced.vcd
+	$(GTKW) $< $(GTKW_DIR)/dynamic.gtkw
+
+.PHONY: wave-folded-static
+wave-folded-static: $(BENCHMARK)-folded.vcd
+	$(GTKW) $< $(GTKW_DIR)/static.gtkw
+
+.PHONY: wave-folded-dynamic
+wave-folded-dynamic: $(BENCHMARK)-folded.vcd
+	$(GTKW) $< $(GTKW_DIR)/dynamic.gtkw
+
+clean:
+	$(RM) -r __pycache__
+	$(RM) *.o
+	$(RM) *.elf
+	$(RM) *.bin
+	$(RM) *.vcd
+	$(RM) *.vcdcat
+	$(RM) *.mem
+	$(RM) *.objdump
+	$(RM) *.results

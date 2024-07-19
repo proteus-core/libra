@@ -94,7 +94,7 @@ trait DecoderService {
   }
 
   protected val decoderConfig: DecoderConfig
-  protected def stage: Stage
+  def stage: Stage
 
   def configure(f: DecoderConfig => Unit): Unit = {
     stage.rework(f(decoderConfig))
@@ -309,6 +309,7 @@ trait JumpService {
 trait BranchTargetPredictorService {
   def predictedPc(stage: Stage): UInt
   def setPredictedPc(stage: Stage, pc: UInt): Unit
+  def updatePrevented(stage: Stage): Bool
 }
 
 trait PrefetchService {
@@ -441,4 +442,48 @@ trait FormalService {
 
 trait Resettable {
   def pipelineReset(): Unit
+}
+
+trait LibraService {
+  def CSR_LIBRA_STATE: Int
+
+  def SBE_TERMINATING_SUBPC: Int
+
+  def SBE_LIBRA_CONTEXT_SIZE: Int
+
+  def setLibraState(stage: Stage): UInt
+
+  def getLibraState(stage: Stage): UInt
+
+  def isReturn(stage: Stage): Bool
+
+  def isLob(stage: Stage): Bool
+
+  def isLeftJal(stage: Stage): Bool
+
+  def isRightJal(stage: Stage): Bool
+
+  def membCnt(state: UInt): UInt
+
+  def curOff(state: UInt): UInt
+
+  def getSliceBaseAddress(current: UInt, offset: UInt): UInt
+
+  def isOrdinaryLob(stage: Stage): Bool
+
+  def isTerminatingLob(stage: Stage): Bool
+
+  def terminatingActive(state: UInt): Bool
+
+  def terminatingSubPc(state: UInt): UInt
+
+  def isActive(state: UInt): Bool
+
+  def savedContextActive(libraCur: UInt): Bool
+
+  def isLibraInst(stage: Stage): Bool
+}
+
+trait BranchService {
+  def isBranch(stage: Stage): Bool
 }

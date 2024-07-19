@@ -27,4 +27,8 @@ class NoPredictionPredictor(fetchStage: Stage, executeStage: Stage)
   override def setPredictedPc(stage: Stage, pc: UInt): Unit = {
     stage.input(Data.PREDICTED_PC) := pc
   }
+
+  override def updatePrevented(stage: Stage): Bool = {
+    False
+  }
 }

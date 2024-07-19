@@ -1,0 +1,10 @@
+*.o
+*.vcd
+*.mem
+*.bin
+*.elf
+*.objdump
+*.results
+results.tex
+__pycache__/
+*.vcdcat
