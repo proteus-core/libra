@@ -10,7 +10,13 @@ This is the repository for our CSS '24 paper.
   - Requires a Xilinx/AMD account (which you can create for free).
   - Customizing the installation: Vivado Design Suite and the 7 Series Production Devices are sufficient, everything else can be deselected.
   - Disk space required: 52 GB.
-  - We used version 2022.2 in our evaluation, but we expect similar results from newer versions.
+  - We used version 2022.2 (ML Edition) in our evaluation, but we expect similar results from newer versions.
+
+When cloning the repository, make sure to clone recursively (or [initialize submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules#_cloning_submodules) after cloning):
+
+```shell
+git clone --recurse-submodules https://github.com/proteus-core/libra
+```
 
 ## Structure of the repository
 
