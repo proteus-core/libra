@@ -22,7 +22,12 @@ git clone --recurse-submodules https://github.com/proteus-core/libra
 
 - `libra-eval`: our benchmarks and the tooling to run them
 - `libra-llvm`: the LLVM compiler framework, with our modification to add support for encoding the level-offset branch instruction (required to compile the benchmark programs).
-- `src`: the Proteus core with our modifications to add support for Libra.
+- `src/main/scala/riscv`: the Proteus core with our modifications to add support for Libra. Main modifications are the following:
+  - `plugins/Libra.scala`: managing the Libra state and decoding the Libra-specific ISA instructions (**HR4**).
+  - `plugins/scheduling/dynamic/ReorderBuffer.scala`: preventing speculative execution after a level-offset branch.
+  - `plugins/BranchUnit.scala`: updating the Libra state by level-offset instructions.
+  - `plugins/BranchTargetPredictorBase.scala`: disabling the branch predictor in secret-dependent regions (**HR2**).
+  - `plugins/memory/Fetcher.scala`: ensuring a secret-independent instruction fetching pattern (**HR2**, **HR3**).
 
 ## Performance and security evaluation
 
