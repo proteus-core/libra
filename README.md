@@ -44,10 +44,6 @@ Building the Docker image also runs both the performance (Table 2, paragraph "Bi
 The result of the performance evaluation is saved in the file `/results-performance.tex`.
 As the security evaluation exits with an error on a detected security violation, a successful build of the image indicates that there were no detected security violations.
 
-> [!IMPORTANT]
-> After submission, we fixed a mistake in the `keypad` benchmark, which slightly changes the evaluation results of this benchmark.
-> We will update the numbers for the camera-ready version of the paper.
-
 The container can be launched with the following command:
 
 ```shell
