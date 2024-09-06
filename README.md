@@ -1,6 +1,15 @@
 # Libra: Architectural Support For Principled, Secure And Efficient Balanced Execution On High-End Processors
 
-This is the repository for our CSS '24 paper.
+This is the repository for our [paper](https://mici.hu/papers/winderix24libra.pdf) published at CSS '24.
+
+```bibtex
+@inproceedings{winderix24libra,
+  title     = {Libra: Architectural Support for Principled, Secure and Efficient Balanced Execution on High-End Processors},
+  author    = {Winderix, Hans and Bognar, Marton and Daniel, Lesly-Ann and Piessens, Frank},
+  booktitle = {{ACM} Conference on Computer and Communications Security ({CCS})},
+  year      = 2024
+}
+```
 
 ## Prerequisites
 
